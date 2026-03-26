@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -471,12 +470,33 @@ function readFile(file) {
   });
 }
 
+function parseCSVLine(line) {
+  // RFC 4180準拠: "xxx,yyy" 形式のクォートを正しく処理
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      result.push(cur.trim());
+      cur = '';
+    } else if (c === '\t' && !inQ) {
+      result.push(cur.trim());
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
 function parseRakuten(text) {
-  // タブ区切り or カンマ区切りを自動判定
   const lines = text.split(/\r?\n/).filter(l => l.trim());
   if (!lines.length) return [];
 
-  // ヘッダー行を探す or スキップ
+  // ヘッダー行を探してスキップ
   let startIdx = 0;
   for (let i = 0; i < Math.min(lines.length, 5); i++) {
     if (lines[i].includes('約定日') || lines[i].includes('銘柄')) {
@@ -490,15 +510,14 @@ function parseRakuten(text) {
     const l = lines[i].trim();
     if (!l) continue;
 
-    // タブ区切りを優先、なければカンマ
-    const cols = l.includes('\t') ? l.split('\t') : l.split(',');
+    // RFC準拠パース（数値内カンマ対応）
+    const cols = parseCSVLine(l);
     if (cols.length < 9) continue;
 
     // 楽天証券フォーマット:
-    // 0:約定日 1:受渡日 2:銘柄コード 3:銘柄名 4:口座 5:信用区分 6:取引種別 7:数量 8:約定単価 9:約定金額 10:平均取得単価 11:損益
-    const clean = cols.map(c => c.trim().replace(/^"|"$/g, ''));
-    const tradeType = clean[6] || '';
-    const pnlStr = clean[clean.length - 1]; // 最終列が損益
+    // 0:約定日 1:受渡日 2:銘柄コード 3:銘柄名 4:口座 5:信用区分 6:取引 7:数量 8:単価 9:金額 10:平均取得単価 11:実現損益
+    const tradeType = cols[6] || '';
+    const pnlStr = cols[cols.length - 1];
     const pnl = parseFloat(pnlStr.replace(/,/g, ''));
 
     // 決済のみ（売埋 or 買埋）
@@ -506,12 +525,12 @@ function parseRakuten(text) {
     if (isNaN(pnl)) continue;
 
     rows.push({
-      _date:   clean[0].replace(/\//g, '/'),
-      _code:   clean[2],
-      _ticker: clean[3],
+      _date:   cols[0],
+      _code:   cols[2],
+      _ticker: cols[3],
       _type:   tradeType,
-      _qty:    parseFloat(clean[7]) || 0,
-      _price:  parseFloat(clean[8].replace(/,/g, '')) || 0,
+      _qty:    parseFloat((cols[7] || '').replace(/,/g, '')) || 0,
+      _price:  parseFloat((cols[8] || '').replace(/,/g, '')) || 0,
       _pnl:    pnl,
     });
   }
