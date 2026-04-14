@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デイトレード 取引分析 | SBI証券対応</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg: #080b10;
+  --surface: #0f1218;
+  --surface2: #161b24;
+  --border: #1e2433;
+  --border2: #252d3e;
+  --accent: #38bdf8;
+  --green: #34d399;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --purple: #a78bfa;
+  --text: #e2e8f0;
+  --text-dim: #64748b;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans JP', sans-serif;
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 200;
+}
+.logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: var(--accent);
+}
+.logo em { color: var(--text-dim); font-style: normal; }
+.header-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  border: 1px solid var(--border2);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+#dropzone {
+  max-width: 520px;
+  margin: 60px auto;
+  border: 1px dashed var(--border2);
+  border-radius: 14px;
+  padding: 60px 36px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .25s;
+  background: var(--surface);
+  position: relative;
+}
+#dropzone::before {
+  content: '';
+  position: absolute;
+  inset: 0; border-radius: 14px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(56,189,248,.06) 0%, transparent 65%);
+  pointer-events: none;
+}
+#dropzone.over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 28px rgba(56,189,248,.12);
+}
+#dropzone .dz-icon { font-size: 40px; margin-bottom: 14px; display: block; }
+#dropzone h2 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+#dropzone p { font-size: 12px; color: var(--text-dim); line-height: 1.7; }
+.dz-btn {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 8px 20px;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+#fileInput { display: none; }
+
+#dashboard { display: none; padding: 24px 24px 60px; max-width: 1400px; margin: 0 auto; }
+
+.sec-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sec-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+}
+.kpi-top { height: 2px; position: absolute; top: 0; left: 0; right: 0; }
+.kpi-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.kpi-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+.kpi-sub { font-size: 10px; color: var(--text-dim); margin-top: 5px; }
+.c-green { color: var(--green); }
+.c-red   { color: var(--red);   }
+.c-blue  { color: var(--accent); }
+.c-yellow{ color: var(--yellow); }
+
+.chart-2 { display: grid; grid-template-columns: 2.2fr 1fr; gap: 12px; margin-bottom: 12px; }
+.chart-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+.chart-1 { margin-bottom: 12px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+.card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; display:inline-block; }
+canvas { max-height: 240px; }
+
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.scroll-x { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: var(--surface2);
+  padding: 9px 12px;
+  text-align: left;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(30,36,51,.5);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: rgba(255,255,255,.02); }
+.badge { display:inline-block; padding:2px 7px; border-radius:4px; font-size:9px; font-weight:700; }
+.bg-green { background:rgba(52,211,153,.12); color:var(--green); }
+.bg-red   { background:rgba(248,113,113,.12); color:var(--red); }
+
+.ai-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 22px;
+  margin-bottom: 12px;
+}
+.ai-desc { font-size: 12px; color: var(--text-dim); line-height: 1.7; margin-bottom: 14px; }
+#ai-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px;
+  background: var(--accent);
+  color: #000;
+  border: none; border-radius: 7px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+}
+#ai-btn:hover { background: #7dd3fc; }
+#ai-btn:disabled { opacity: .4; cursor: not-allowed; }
+#ai-result {
+  display: none;
+  margin-top: 18px;
+  padding: 18px;
+  background: var(--surface2);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+  font-size: 12px; line-height: 1.85;
+  white-space: pre-wrap;
+}
+
+#loading {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(8,11,16,.88);
+  z-index: 999;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 14px;
+}
+.spinner {
+  width: 38px; height: 38px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-txt {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; letter-spacing: 3px;
+  color: var(--accent);
+}
+
+@media (max-width: 1000px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .chart-2, .chart-3 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">TRADE<em>//</em>ANALYZER</div>
+  <div class="header-badge">SBI証券 約定履歴対応</div>
+</header>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="loading-txt">ANALYZING...</div>
+</div>
+
+<div id="dropzone" onclick="document.getElementById('fileInput').click()">
+  <span class="dz-icon">📈</span>
+  <h2>CSVをドロップしてください</h2>
+  <p>SBI証券「約定履歴照会」のCSVに対応<br>Shift-JIS / CP932 自動デコード</p>
+  <div class="dz-btn">ファイルを選択</div>
+  <input type="file" id="fileInput" accept=".csv">
+</div>
+
+<div id="dashboard">
+  <div class="sec-label" style="margin-top:4px">OVERVIEW</div>
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="sec-label">PERFORMANCE</div>
+  <div class="chart-2">
+    <div class="card">
+      <div class="card-title"><span class="pip" style="background:var(--accent)"></span>累積損益推移</div>
+      <canvas id="cumulChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="pip" style="background:var(--yellow)"></span>勝率</div>
+      <canvas id="winChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-1 card">
+    <div class="card-title"><span class="pip" style="background:var(--purple)"></span>日別 損益</div>
+    <canvas id="dailyChart"></canvas>
+  </div>
+
+  <div class="sec-label">BREAKDOWN</div>
+  <div class="chart-3">
+    <div class="card">
+      <div class="card-title"><span class="pip" style="background:var(--green)"></span>銘柄別 損益 TOP10</div>
+      <canvas id="tickerChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="pip" style="background:var(--accent)"></span>市場別 損益</div>
+      <canvas id="marketChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="pip" style="background:var(--yellow)"></span>損益分布</div>
+      <canvas id="distChart"></canvas>
+    </div>
+  </div>
+
+  <div class="sec-label">銘柄別 パフォーマンス</div>
+  <div class="table-wrap">
+    <div class="scroll-x">
+      <table>
+        <thead>
+          <tr>
+            <th>銘柄</th><th>CODE</th><th>回数</th>
+            <th>損益合計</th><th>勝率</th><th>平均損益</th>
+            <th>最大利益</th><th>最大損失</th>
+          </tr>
+        </thead>
+        <tbody id="tickerTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec-label">AI 分析</div>
+  <div class="ai-card">
+    <div class="card-title"><span class="pip" style="background:var(--accent)"></span>Claude による取引パターン診断</div>
+    <p class="ai-desc">取引データをもとに、負けパターンの原因・勝ちトレードの特徴・具体的な改善策をAIが診断します。</p>
+    <button id="ai-btn" onclick="runAI()">🤖 AI診断を実行</button>
+    <div id="ai-result"></div>
+  </div>
+</div>
+
+<script>
+// === CSV PARSE ===
+function readAsShiftJIS(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => {
+      try { res(new TextDecoder('shift-jis').decode(e.target.result)); }
+      catch { rej(new Error('デコード失敗')); }
+    };
+    r.onerror = rej;
+    r.readAsArrayBuffer(file);
+  });
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/);
+  let hi = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes('約定日') && lines[i].includes('銘柄コード')) { hi = i; break; }
+  }
+  if (hi < 0) return [];
+  const headers = splitRow(lines[hi]);
+  const rows = [];
+  for (let i = hi + 1; i < lines.length; i++) {
+    const l = lines[i].trim();
+    if (!l) continue;
+    const cols = splitRow(l);
+    if (cols.length < 5) continue;
+    const obj = {};
+    headers.forEach((h, idx) => obj[h] = (cols[idx]||'').replace(/^"|"$/g,'').trim());
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function splitRow(line) {
+  const res=[]; let cur='', inQ=false;
+  for (const c of line) {
+    if (c==='"') inQ=!inQ;
+    else if (c===',' && !inQ) { res.push(cur); cur=''; }
+    else cur+=c;
+  }
+  res.push(cur);
+  return res;
+}
+
+// === DROP / FILE ===
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); handle(e.dataTransfer.files[0]); });
+document.getElementById('fileInput').addEventListener('change', e => { if (e.target.files[0]) handle(e.target.files[0]); });
+
+async function handle(file) {
+  setLoading(true);
+  try {
+    const text = await readAsShiftJIS(file);
+    const rows = parseCSV(text);
+    if (!rows.length) throw new Error('データが見つかりません。SBI証券の約定履歴CSVをご利用ください。');
+    window._allRows = rows;
+    window._closedRows = rows.filter(r => {
+      const v = r['受渡金額/決済損益'];
+      return v && v !== '--' && !isNaN(parseFloat(v));
+    });
+    window._closedRows.forEach(r => {
+      r._pnl    = parseFloat(r['受渡金額/決済損益']);
+      r._date   = r['約定日'] || '';
+      r._ticker = r['銘柄'] || '';
+      r._code   = r['銘柄コード'] || '';
+      r._market = r['市場'] || '';
+    });
+    render(window._closedRows);
+  } catch(e) { alert(e.message); }
+  setLoading(false);
+}
+
+function setLoading(v) {
+  document.getElementById('loading').style.display = v ? 'flex' : 'none';
+}
+
+// === CHARTS ===
+const _ch = {};
+function mkChart(id, cfg) {
+  if (_ch[id]) _ch[id].destroy();
+  _ch[id] = new Chart(document.getElementById(id), cfg);
+}
+
+function copts() {
+  return {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor:'#0f1218', borderColor:'#1e2433', borderWidth:1,
+        titleColor:'#e2e8f0', bodyColor:'#64748b',
+        callbacks: { label: ctx => ' ' + Number(ctx.raw).toLocaleString() + '円' }
+      }
+    },
+    scales: {
+      x: { grid:{color:'#1e243360'}, ticks:{color:'#64748b',font:{size:9}} },
+      y: { grid:{color:'#1e243360'}, ticks:{color:'#64748b',font:{size:9},callback:v=>v.toLocaleString()} }
+    }
+  };
+}
+
+function fc(n) { return Number(n).toLocaleString('ja-JP',{maximumFractionDigits:0}); }
+
+function render(data) {
+  const wins   = data.filter(r => r._pnl > 0);
+  const losses = data.filter(r => r._pnl < 0);
+  const totalPnl  = data.reduce((s,r) => s+r._pnl, 0);
+  const winRate   = data.length ? wins.length/data.length*100 : 0;
+  const avgWin    = wins.length ? wins.reduce((s,r)=>s+r._pnl,0)/wins.length : 0;
+  const avgLoss   = losses.length ? losses.reduce((s,r)=>s+r._pnl,0)/losses.length : 0;
+  const grossWin  = wins.reduce((s,r)=>s+r._pnl,0);
+  const grossLoss = Math.abs(losses.reduce((s,r)=>s+r._pnl,0));
+  const pf        = grossLoss > 0 ? grossWin/grossLoss : 0;
+  const maxWin    = data.length ? Math.max(...data.map(r=>r._pnl)) : 0;
+  const maxLoss   = data.length ? Math.min(...data.map(r=>r._pnl)) : 0;
+
+  // KPIs
+  document.getElementById('kpiGrid').innerHTML = [
+    {l:'TOTAL P&L',    v:fc(totalPnl)+'円',      s:`${data.length}件の決済`,      cls:totalPnl>=0?'c-green':'c-red',   top:totalPnl>=0?'var(--green)':'var(--red)'},
+    {l:'WIN RATE',     v:winRate.toFixed(1)+'%',  s:`${wins.length}勝 ${losses.length}敗`, cls:winRate>=50?'c-green':'c-red', top:winRate>=50?'var(--green)':'var(--red)'},
+    {l:'PROFIT FACTOR',v:pf.toFixed(2),           s:'総利益 ÷ 総損失',            cls:pf>=1.5?'c-green':pf>=1?'c-yellow':'c-red', top:pf>=1.5?'var(--green)':pf>=1?'var(--yellow)':'var(--red)'},
+    {l:'AVG WIN',      v:fc(avgWin)+'円',          s:`${wins.length}回`,            cls:'c-green', top:'var(--green)'},
+    {l:'AVG LOSS',     v:fc(avgLoss)+'円',         s:`${losses.length}回`,          cls:'c-red',   top:'var(--red)'},
+    {l:'MAX WIN',      v:fc(maxWin)+'円',           s:'1回の最大利益',              cls:'c-green', top:'var(--green)'},
+    {l:'MAX LOSS',     v:fc(maxLoss)+'円',          s:'1回の最大損失',              cls:'c-red',   top:'var(--red)'},
+    {l:'TOTAL ORDERS', v:window._allRows.length.toLocaleString(), s:`決済済 ${data.length}件`, cls:'c-blue', top:'var(--accent)'},
+  ].map(k=>`<div class="kpi-card">
+    <div class="kpi-top" style="background:${k.top}"></div>
+    <div class="kpi-label">${k.l}</div>
+    <div class="kpi-val ${k.cls}">${k.v}</div>
+    <div class="kpi-sub">${k.s}</div>
+  </div>`).join('');
+
+  // 日別
+  const byDate = {};
+  data.forEach(r => { byDate[r._date] = (byDate[r._date]||0) + r._pnl; });
+  const dates = Object.keys(byDate).sort();
+  let cum = 0;
+  const cumArr = dates.map(d => { cum += byDate[d]; return cum; });
+  const lastCum = cumArr[cumArr.length-1] || 0;
+
+  mkChart('cumulChart', {
+    type:'line',
+    data:{
+      labels: dates.map(d=>d.replace('2026/','')),
+      datasets:[{
+        data: cumArr,
+        borderColor: lastCum>=0?'#34d399':'#f87171',
+        backgroundColor: (() => {
+          const c = lastCum>=0?'#34d399':'#f87171';
+          return ctx => {
+            const g = ctx.chart.ctx.createLinearGradient(0,0,0,240);
+            g.addColorStop(0,c+'28'); g.addColorStop(1,c+'00'); return g;
+          };
+        })(),
+        fill:true, tension:0.35,
+        pointRadius: dates.length>35?0:3, borderWidth:2,
+      }]
+    },
+    options: copts()
+  });
+
+  mkChart('winChart', {
+    type:'doughnut',
+    data:{
+      labels:['勝ち','負け','ゼロ'],
+      datasets:[{
+        data:[wins.length,losses.length,data.length-wins.length-losses.length],
+        backgroundColor:['#34d39988','#f8717188','#64748b88'],
+        borderWidth:0,
+      }]
+    },
+    options:{plugins:{legend:{labels:{color:'#64748b',font:{size:10}}}},cutout:'68%'}
+  });
+
+  mkChart('dailyChart', {
+    type:'bar',
+    data:{
+      labels: dates.map(d=>d.replace('2026/','')),
+      datasets:[{
+        data: dates.map(d=>byDate[d]),
+        backgroundColor: dates.map(d=>byDate[d]>=0?'#34d39966':'#f8717166'),
+        borderColor:     dates.map(d=>byDate[d]>=0?'#34d399':'#f87171'),
+        borderWidth:1,
+      }]
+    },
+    options: copts()
+  });
+
+  // 銘柄別
+  const byT = {};
+  data.forEach(r => {
+    const k = r._ticker+'\n'+r._code;
+    if (!byT[k]) byT[k]={pnl:0,cnt:0,wins:0,losses:0,maxW:-Infinity,maxL:Infinity};
+    byT[k].pnl+=r._pnl; byT[k].cnt++;
+    if (r._pnl>0){byT[k].wins++;byT[k].maxW=Math.max(byT[k].maxW,r._pnl);}
+    if (r._pnl<0){byT[k].losses++;byT[k].maxL=Math.min(byT[k].maxL,r._pnl);}
+  });
+
+  const top10 = Object.entries(byT).sort((a,b)=>Math.abs(b[1].pnl)-Math.abs(a[1].pnl)).slice(0,10);
+  mkChart('tickerChart',{
+    type:'bar',
+    data:{
+      labels:top10.map(([k])=>k.split('\n')[0]),
+      datasets:[{
+        data:top10.map(([,v])=>v.pnl),
+        backgroundColor:top10.map(([,v])=>v.pnl>=0?'#34d39966':'#f8717166'),
+        borderColor:top10.map(([,v])=>v.pnl>=0?'#34d399':'#f87171'),
+        borderWidth:1,
+      }]
+    },
+    options:{...copts(),indexAxis:'y',plugins:{legend:{display:false}}}
+  });
+
+  const byM={};
+  data.forEach(r=>{byM[r._market]=(byM[r._market]||0)+r._pnl;});
+  const mE=Object.entries(byM);
+  mkChart('marketChart',{
+    type:'doughnut',
+    data:{
+      labels:mE.map(([k])=>k),
+      datasets:[{
+        data:mE.map(([,v])=>v),
+        backgroundColor:['#38bdf880','#34d39980','#fbbf2480','#f8717180','#a78bfa80'],
+        borderWidth:0,
+      }]
+    },
+    options:{plugins:{legend:{labels:{color:'#64748b',font:{size:9}}}}}
+  });
+
+  const step=1000,bins={};
+  data.forEach(r=>{const b=Math.floor(r._pnl/step)*step;bins[b]=(bins[b]||0)+1;});
+  const bk=Object.keys(bins).map(Number).sort((a,b)=>a-b);
+  mkChart('distChart',{
+    type:'bar',
+    data:{
+      labels:bk.map(k=>(k>=0?'+':'')+k.toLocaleString()),
+      datasets:[{
+        data:bk.map(k=>bins[k]),
+        backgroundColor:bk.map(k=>k>=0?'#34d39960':'#f8717160'),
+        borderColor:bk.map(k=>k>=0?'#34d399':'#f87171'),
+        borderWidth:1,
+      }]
+    },
+    options:{...copts(),plugins:{legend:{display:false}}}
+  });
+
+  // テーブル
+  const tableRows = Object.entries(byT).sort((a,b)=>b[1].pnl-a[1].pnl);
+  document.getElementById('tickerTable').innerHTML = tableRows.map(([k,v])=>{
+    const [name,code]=k.split('\n');
+    const wr=v.cnt?(v.wins/v.cnt*100).toFixed(0):0;
+    const avg=v.cnt?(v.pnl/v.cnt).toFixed(0):0;
+    return `<tr>
+      <td style="color:var(--text)">${name}</td>
+      <td style="color:var(--text-dim)">${code}</td>
+      <td>${v.cnt}</td>
+      <td><span class="badge ${v.pnl>=0?'bg-green':'bg-red'}">${fc(v.pnl)}円</span></td>
+      <td style="color:${wr>=50?'var(--green)':'var(--red)'}">${wr}%</td>
+      <td style="color:${avg>=0?'var(--green)':'var(--red)'}">${fc(avg)}円</td>
+      <td style="color:var(--green)">${v.maxW>-Infinity?fc(v.maxW)+'円':'--'}</td>
+      <td style="color:var(--red)">${v.maxL<Infinity?fc(v.maxL)+'円':'--'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('dropzone').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  document.getElementById('ai-result').style.display='none';
+}
+
+// === AI ANALYSIS ===
+async function runAI() {
+  const btn = document.getElementById('ai-btn');
+  const box = document.getElementById('ai-result');
+  btn.disabled=true; btn.textContent='🔄 診断中...';
+  box.style.display='block'; box.textContent='分析中です。少々お待ちください...';
+
+  const data = window._closedRows || [];
+  const allRows = window._allRows || [];
+  const wins   = data.filter(r=>r._pnl>0);
+  const losses = data.filter(r=>r._pnl<0);
+  const totalPnl = data.reduce((s,r)=>s+r._pnl,0);
+  const winRate  = data.length?(wins.length/data.length*100).toFixed(1):0;
+  const avgWin   = wins.length?(wins.reduce((s,r)=>s+r._pnl,0)/wins.length).toFixed(0):0;
+  const avgLoss  = losses.length?(losses.reduce((s,r)=>s+r._pnl,0)/losses.length).toFixed(0):0;
+  const grossWin = wins.reduce((s,r)=>s+r._pnl,0);
+  const grossLoss= Math.abs(losses.reduce((s,r)=>s+r._pnl,0));
+  const pf = grossLoss>0?(grossWin/grossLoss).toFixed(2):'N/A';
+
+  const byT={};
+  data.forEach(r=>{
+    if(!byT[r._ticker]) byT[r._ticker]={pnl:0,cnt:0,wins:0};
+    byT[r._ticker].pnl+=r._pnl; byT[r._ticker].cnt++;
+    if(r._pnl>0) byT[r._ticker].wins++;
+  });
+  const topL=Object.entries(byT).sort((a,b)=>a[1].pnl-b[1].pnl).slice(0,5);
+  const topW=Object.entries(byT).sort((a,b)=>b[1].pnl-a[1].pnl).slice(0,5);
+
+  const byDate={};
+  data.forEach(r=>{byDate[r._date]=(byDate[r._date]||0)+r._pnl;});
+  const dates=Object.keys(byDate).sort();
+  const badDays=Object.entries(byDate).sort(([,a],[,b])=>a-b).slice(0,3);
+
+  const prompt = `あなたはプロのデイトレーダー向けパフォーマンスコーチです。以下のSBI証券 約定履歴データを分析して、具体的で実践的な改善アドバイスをください。
+
+【取引期間】${dates[0]} ～ ${dates[dates.length-1]}（${dates.length}営業日）
+【約定件数】全 ${allRows.length}件 / うち決済済 ${data.length}件
+【損益合計】${totalPnl.toLocaleString()}円
+【勝率】${winRate}%（${wins.length}勝 ${losses.length}敗）
+【平均利益】+${Number(avgWin).toLocaleString()}円 / 【平均損失】${Number(avgLoss).toLocaleString()}円
+【プロフィットファクター】${pf}
+【最大利益（1回）】${Math.max(...data.map(r=>r._pnl)).toLocaleString()}円
+【最大損失（1回）】${Math.min(...data.map(r=>r._pnl)).toLocaleString()}円
+
+▼ 利益上位銘柄
+${topW.map(([k,v])=>`  ${k}: ${v.pnl.toLocaleString()}円（${v.cnt}回、勝率${(v.wins/v.cnt*100).toFixed(0)}%）`).join('\n')}
+
+▼ 損失上位銘柄
+${topL.map(([k,v])=>`  ${k}: ${v.pnl.toLocaleString()}円（${v.cnt}回、勝率${(v.wins/v.cnt*100).toFixed(0)}%）`).join('\n')}
+
+▼ 損失が大きかった日TOP3
+${badDays.map(([d,v])=>`  ${d}: ${v.toLocaleString()}円`).join('\n')}
+
+以下の観点で分析してください：
+
+## 1. 現状診断
+取引データから読み取れる強み・弱みを具体的に
+
+## 2. 負けパターンの分析
+損失上位銘柄や損失の大きな日の傾向から、繰り返しているミスのパターン
+
+## 3. 勝ちパターンの分析
+利益を出せている銘柄・取引の共通点
+
+## 4. 具体的な改善アクション（3つ）
+明日から実践できる具体的な行動指針
+
+データに基づいて鋭く、かつ建設的に分析してください。`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const json = await res.json();
+    box.textContent = json.content?.[0]?.text || 'レスポンスが取得できませんでした';
+  } catch(e) {
+    box.textContent = 'エラー: ' + e.message;
+  }
+
+  btn.disabled=false; btn.textContent='🤖 AI診断を再実行';
+}
+</script>
+</body>
+</html>
